@@ -36,7 +36,10 @@ def main(
         from src.reflexion_lab.llm import LLMClient
         from src.reflexion_lab.llm_runtime import LLMRuntime
 
-        client = LLMClient(provider=(provider or "ollama"), model=model)  # type: ignore[arg-type]
+        # Pass only the flags that were given; anything omitted falls back to
+        # the .env / environment defaults inside LLMClient (LLM_PROVIDER / LLM_MODEL).
+        overrides = {k: v for k, v in {"provider": provider, "model": model}.items() if v}
+        client = LLMClient(**overrides)
         runtime = LLMRuntime(client=client)
         report_mode = runtime.name
 
