@@ -52,6 +52,14 @@ Reproduce: `python run_benchmark.py --dataset data/multihop_eval.json --out-dir 
 | Avg tokens (real) | 598.6 | 675.8 | +77.2 |
 | Avg latency ms (real) | 6851 | 8442 | +1591 |
 
+Cost & runtime (local Ollama → $0; set `LLM_PRICE_PER_1M_TOKENS` for hosted models):
+
+| Agent | Records | Total tokens | Total runtime | Avg/Q | Est. cost |
+|---|---:|---:|---:|---:|---:|
+| ReAct | 112 | 67,041 | 767 s | 6.85 s | $0.00 |
+| Reflexion | 112 | 75,691 | 946 s | 8.44 s | $0.00 |
+| **Total** | 224 | 142,732 | ~28.5 min | 7.65 s | $0.00 |
+
 Failure modes (count by mode → per agent):
 
 | Mode | ReAct | Reflexion |

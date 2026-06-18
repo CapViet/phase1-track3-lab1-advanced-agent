@@ -57,6 +57,7 @@ class ReportPayload(BaseModel):
     examples: list[dict]
     extensions: list[str]
     discussion: str
+    cost: dict = Field(default_factory=dict)
 
 class ReflexionState(TypedDict):
     question: str

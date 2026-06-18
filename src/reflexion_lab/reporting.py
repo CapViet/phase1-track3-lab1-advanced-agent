@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import os
 from collections import Counter, defaultdict
 from pathlib import Path
 from statistics import mean
@@ -7,6 +8,34 @@ from .schemas import ReportPayload, RunRecord
 
 # Extensions implemented in this repo (recognized by autograde.py).
 IMPLEMENTED_EXTENSIONS = ["structured_evaluator", "reflection_memory", "benchmark_report_json", "mock_mode_for_autograding"]
+
+# USD per 1M tokens, used for the cost estimate. Local Ollama is free (0.0).
+# Set LLM_PRICE_PER_1M_TOKENS for a hosted model (e.g. gpt-4o-mini ~0.30 blended).
+PRICE_PER_1M = float(os.getenv("LLM_PRICE_PER_1M_TOKENS", "0") or 0)
+
+
+def cost_table(records: list[RunRecord]) -> dict:
+    """Aggregate token usage and running time into a cost estimate, per agent + total."""
+    grouped: dict[str, list[RunRecord]] = defaultdict(list)
+    for record in records:
+        grouped[record.agent_type].append(record)
+
+    def row(rows: list[RunRecord]) -> dict:
+        total_tokens = sum(r.token_estimate for r in rows)
+        total_ms = sum(r.latency_ms for r in rows)
+        n = len(rows) or 1
+        return {
+            "records": len(rows),
+            "total_tokens": total_tokens,
+            "total_runtime_sec": round(total_ms / 1000, 2),
+            "avg_runtime_sec_per_q": round(total_ms / 1000 / n, 2),
+            "est_cost_usd": round(total_tokens / 1_000_000 * PRICE_PER_1M, 6),
+        }
+
+    table = {agent: row(rows) for agent, rows in grouped.items()}
+    table["total"] = row(records)
+    table["price_per_1m_tokens_usd"] = PRICE_PER_1M
+    return table
 
 
 def summarize(records: list[RunRecord]) -> dict:
@@ -82,6 +111,7 @@ def build_report(records: list[RunRecord], dataset_name: str, mode: str = "mock"
         examples=examples,
         extensions=extensions if extensions is not None else IMPLEMENTED_EXTENSIONS,
         discussion=_build_discussion(summary, failure_modes, mode),
+        cost=cost_table(records),
     )
 
 
@@ -96,6 +126,9 @@ def save_report(report: ReportPayload, out_dir: str | Path) -> tuple[Path, Path]
     reflexion = s.get("reflexion", {})
     delta = s.get("delta_reflexion_minus_react", {})
     ext_lines = "\n".join(f"- {item}" for item in report.extensions)
+    c = report.cost
+    cr, cx, ct = c.get("react", {}), c.get("reflexion", {}), c.get("total", {})
+    price = c.get("price_per_1m_tokens_usd", 0)
     md = f"""# Lab 16 Benchmark Report
 
 ## Metadata
@@ -111,6 +144,13 @@ def save_report(report: ReportPayload, out_dir: str | Path) -> tuple[Path, Path]
 | Avg attempts | {react.get('avg_attempts', 0)} | {reflexion.get('avg_attempts', 0)} | {delta.get('attempts_abs', 0)} |
 | Avg token estimate | {react.get('avg_token_estimate', 0)} | {reflexion.get('avg_token_estimate', 0)} | {delta.get('tokens_abs', 0)} |
 | Avg latency (ms) | {react.get('avg_latency_ms', 0)} | {reflexion.get('avg_latency_ms', 0)} | {delta.get('latency_abs', 0)} |
+
+## Cost & Runtime (price = ${price}/1M tokens; local Ollama = free)
+| Agent | Records | Total tokens | Total runtime (s) | Avg time/Q (s) | Est. cost (USD) |
+|---|---:|---:|---:|---:|---:|
+| ReAct | {cr.get('records', 0)} | {cr.get('total_tokens', 0)} | {cr.get('total_runtime_sec', 0)} | {cr.get('avg_runtime_sec_per_q', 0)} | {cr.get('est_cost_usd', 0)} |
+| Reflexion | {cx.get('records', 0)} | {cx.get('total_tokens', 0)} | {cx.get('total_runtime_sec', 0)} | {cx.get('avg_runtime_sec_per_q', 0)} | {cx.get('est_cost_usd', 0)} |
+| **Total** | {ct.get('records', 0)} | {ct.get('total_tokens', 0)} | {ct.get('total_runtime_sec', 0)} | {ct.get('avg_runtime_sec_per_q', 0)} | {ct.get('est_cost_usd', 0)} |
 
 ## Failure modes (by mode -> per-agent counts)
 ```json
