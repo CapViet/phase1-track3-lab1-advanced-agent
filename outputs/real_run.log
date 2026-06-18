@@ -1,0 +1,27 @@
+Mode: llm:ollama:qwen2.5:3b  |  Examples: 112  |  Reflexion attempts: 3
+ReAct      ---------------------------------------- 100% 0:12:47
+Reflexion  ---------------------------------------- 100% 0:15:45
+Saved outputs\real_run\report.json
+Saved outputs\real_run\report.md
+{
+  "react": {
+    "count": 112,
+    "em": 0.9554,
+    "avg_attempts": 1,
+    "avg_token_estimate": 598.58,
+    "avg_latency_ms": 6851.16
+  },
+  "reflexion": {
+    "count": 112,
+    "em": 0.9732,
+    "avg_attempts": 1.0714,
+    "avg_token_estimate": 675.81,
+    "avg_latency_ms": 8441.98
+  },
+  "delta_reflexion_minus_react": {
+    "em_abs": 0.0178,
+    "attempts_abs": 0.0714,
+    "tokens_abs": 77.23,
+    "latency_abs": 1590.82
+  }
+}
